@@ -1,0 +1,46 @@
+#/bin/sh
+
+start()
+{
+    echo -n "Starting EPP proxy server"
+    twistd --pidfile run/proxy.pid -oy proxy.tac
+    echo " ... started."
+}
+
+stop()
+{
+    echo -n "Stopping EPP proxy server"
+    if [ -e run/proxy.pid ]
+    then
+        PID=`head -n 1 run/proxy.pid`
+        kill ${PID}
+        while ps -p ${PID} > /dev/null; do sleep 1; done
+        echo " ... stopped."
+    else
+        echo " ... no pid file."
+    fi
+}
+
+case "$1" in
+start)
+    start
+    ;;
+fg)
+    echo -n "Starting EPP proxy server in foreground mode"
+    echo ""
+    twistd --pidfile run/proxy.pid -noy proxy.tac
+    echo " ... stopped."
+    ;;
+stop)
+    stop
+    ;;
+restart)
+    stop
+    start
+    ;;
+*)
+     echo "Usage: ctl {start|stop|restart|fg}"
+     exit 1
+esac
+
+exit 0
