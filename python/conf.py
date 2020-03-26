@@ -12,6 +12,7 @@ SSL_ENABLED = True
 SSL_LISTEN_PORT = 700
 SSL_KEY = os.environ.get('SSL_KEY', './certs/serverkey.pem')
 SSL_CRT = os.environ.get('SSL_CRT', './certs/servercert.pem')
+SSL_CA = os.environ.get('SSL_CA', './certs/serverca.pem')
 
 # master EPP server to which to connect to. If the server requires you to
 # connect using client SSL certificate configure it here, otherwise leave

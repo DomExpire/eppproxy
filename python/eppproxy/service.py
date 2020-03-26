@@ -17,6 +17,7 @@ from twisted.web import util as webutil
 from twisted.mail import smtp
 
 from eppproxy import proxy
+from OpenSSL import SSL
 import conf
 
 
@@ -33,6 +34,7 @@ class Proxy(service.Service):
         log.msg(conf.SSL_LISTEN_PORT)
         log.msg(conf.SSL_KEY)
         log.msg(conf.SSL_CRT)
+        log.msg(conf.SSL_CA)
         log.msg(conf.EPP_HOST)
         log.msg(conf.EPP_PORT)
         log.msg(conf.CLIENT_SSL_KEY)
@@ -46,12 +48,34 @@ class Proxy(service.Service):
         # init proxy manager
         self.pm = proxy.ProxyManager()
 
+        myContextFactory = ssl.DefaultOpenSSLContextFactory(
+            conf.SSL_KEY, conf.SSL_CRT
+        )
+
+        ctx = myContextFactory.getContext()
+
+        def verifyCallback(connection, x509, errnum, errdepth, ok):
+          if not ok:
+              subject = x509.get_subject()
+              ssubject = "".join("/{0:s}={1:s}".format(name.decode(), value.decode()) for name, value in subject.get_components())
+              log.msg('invalid cert from subject:' + ssubject)
+              return False
+          else:
+              log.msg("Certs are fine")
+          return True
+
+        ctx.set_verify(
+            SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
+            verifyCallback
+        )
+        ctx.load_verify_locations(conf.SSL_CA)
+
         # start server
         reactor.suggestThreadPoolSize(5)
         if conf.ENABLED:
             self.port = reactor.listenTCP(conf.LISTEN_PORT, proxy.ProxyServerFactory(), interface=conf.INTERFACE)
         if conf.SSL_ENABLED:
-            self.ssl_port = reactor.listenSSL(conf.SSL_LISTEN_PORT, proxy.ProxyServerFactory(), ssl.DefaultOpenSSLContextFactory(conf.SSL_KEY, conf.SSL_CRT), interface=conf.INTERFACE)
+            self.ssl_port = reactor.listenSSL(conf.SSL_LISTEN_PORT, proxy.ProxyServerFactory(), myContextFactory, interface=conf.INTERFACE)
 
     def stopService(self):
         self.running = 0
